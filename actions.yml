@@ -1,0 +1,41 @@
+name: Dev_Pipeline
+
+on:
+  push:
+    branches: ["staging_new"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          source: ${{ github.workspace }}
+          target: /home/ubuntu/backend/src
+          host: ${{ secrets.DEV_SERVER_IP }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          strip_components: 1
+
+      - name: Execute commands on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_SERVER_IP }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/backend/src
+            pm2 restart --name 'aqad_be' server.js
+
+
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DEV_DISCORD_WEBHOOK_URL}}
+        uses: Ilshidur/action-discord@master
+        with:
+          args: "New build is live on Dev server(ck-capital-backend-dev-UAT):- 18.132.49.142"
